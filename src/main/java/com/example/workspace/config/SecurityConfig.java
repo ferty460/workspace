@@ -36,9 +36,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) {
         httpSecurity
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/auth/**"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/auth/**", "/api/home"))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/home").permitAll()
                         .anyRequest().authenticated()
                 )
                 .userDetailsService(userDetailsService)
