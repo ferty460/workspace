@@ -1,6 +1,6 @@
 package com.example.workspace.controller;
 
-import com.example.workspace.model.User;
+import com.example.workspace.model.dto.UserResponseDto;
 import com.example.workspace.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +18,7 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
+    public ResponseEntity<List<UserResponseDto>> getAllUsers() {
         return ResponseEntity.ok(userService.getAll());
     }
 

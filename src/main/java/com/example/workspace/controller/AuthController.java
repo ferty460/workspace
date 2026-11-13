@@ -1,11 +1,13 @@
 package com.example.workspace.controller;
 
-import com.example.workspace.model.User;
+import com.example.workspace.model.dto.AuthRequestDto;
+import com.example.workspace.model.dto.UserResponseDto;
 import com.example.workspace.service.AuthService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,18 +22,18 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody User user) {
-        User registeredUser = authService.register(user);
+    public ResponseEntity<?> register(@Valid @RequestBody AuthRequestDto requestDto) {
+        UserResponseDto registeredUser = authService.register(requestDto);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(registeredUser);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody User user) {
-        authService.login(user);
+    public ResponseEntity<?> login(@Valid @RequestBody AuthRequestDto requestDto) {
+        authService.login(requestDto);
 
-        return ResponseEntity.ok(user);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/logout")
@@ -41,9 +43,7 @@ public class AuthController {
             Authentication authentication
     ) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
         authService.logout();

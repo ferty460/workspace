@@ -1,12 +1,14 @@
 package com.example.workspace.service;
 
 import com.example.workspace.model.User;
+import com.example.workspace.model.dto.AuthRequestDto;
+import com.example.workspace.model.dto.UserResponseDto;
 import com.example.workspace.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,25 +21,30 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
 
-    public User register(User user) {
-        String login = user.getLogin();
+    public UserResponseDto register(AuthRequestDto requestDto) {
+        String login = requestDto.login();
         if (userRepository.findByLogin(login).isPresent()) {
             throw new IllegalStateException("User with login '" + login + "' already exists");
         }
 
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        return userRepository.add(user);
+        User registeredUser = new User();
+        registeredUser.setLogin(login);
+        registeredUser.setPassword(passwordEncoder.encode(requestDto.password()));
+
+        User addedUser = userRepository.add(registeredUser);
+
+        return new UserResponseDto(addedUser.getId(), login);
     }
 
-    public void login(User user) {
+    public void login(AuthRequestDto requestDto) {
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(user.getLogin(), user.getPassword())
+                    new UsernamePasswordAuthenticationToken(requestDto.login(), requestDto.password())
             );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-        } catch (BadCredentialsException e) {
-            throw new RuntimeException("Wrong username or password");
+        } catch (AuthenticationException e) {
+            throw new RuntimeException("Wrong login or password");
         }
     }
 
