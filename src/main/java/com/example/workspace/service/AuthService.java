@@ -1,5 +1,7 @@
 package com.example.workspace.service;
 
+import com.example.workspace.exception.InvalidCredentialsException;
+import com.example.workspace.exception.UserAlreadyExistsException;
 import com.example.workspace.model.User;
 import com.example.workspace.model.dto.AuthRequestDto;
 import com.example.workspace.model.dto.UserResponseDto;
@@ -24,7 +26,7 @@ public class AuthService {
     public UserResponseDto register(AuthRequestDto requestDto) {
         String login = requestDto.login();
         if (userRepository.findByLogin(login).isPresent()) {
-            throw new IllegalStateException("User with login '" + login + "' already exists");
+            throw new UserAlreadyExistsException(login);
         }
 
         User registeredUser = new User();
@@ -44,7 +46,7 @@ public class AuthService {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (AuthenticationException e) {
-            throw new RuntimeException("Wrong login or password");
+            throw new InvalidCredentialsException();
         }
     }
 
