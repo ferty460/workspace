@@ -1,3 +1,8 @@
 spring:
   application:
     name: workspace
+
+logging:
+  level:
+    root: INFO
+    com.example.workspace: DEBUG
