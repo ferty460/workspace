@@ -1,6 +1,7 @@
 package com.example.workspace.controller;
 
 import com.example.workspace.model.dto.AuthRequestDto;
+import com.example.workspace.model.dto.AuthResponseDto;
 import com.example.workspace.model.dto.UserResponseDto;
 import com.example.workspace.service.AuthService;
 import jakarta.servlet.http.Cookie;
@@ -30,38 +31,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody AuthRequestDto requestDto) {
-        authService.login(requestDto);
-
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<?> logout(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            Authentication authentication
-    ) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        authService.logout();
-        clearSessionWithCookie(request, response);
-
-        return ResponseEntity.noContent().build();
-    }
-
-    private void clearSessionWithCookie(HttpServletRequest request, HttpServletResponse response) {
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            session.invalidate();
-        }
-
-        Cookie cookie = new Cookie("JSESSIONID", null);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+    public ResponseEntity<AuthResponseDto> login(@Valid @RequestBody AuthRequestDto requestDto) {
+        return ResponseEntity.ok(authService.login(requestDto));
     }
 
 }

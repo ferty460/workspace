@@ -4,6 +4,7 @@ import com.example.workspace.exception.InvalidCredentialsException;
 import com.example.workspace.exception.UserAlreadyExistsException;
 import com.example.workspace.model.User;
 import com.example.workspace.model.dto.AuthRequestDto;
+import com.example.workspace.model.dto.AuthResponseDto;
 import com.example.workspace.model.dto.UserResponseDto;
 import com.example.workspace.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,8 +14,11 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -24,6 +28,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
 
     public UserResponseDto register(AuthRequestDto requestDto) {
         String login = requestDto.login();
@@ -42,26 +47,20 @@ public class AuthService {
         return new UserResponseDto(addedUser.getId(), login);
     }
 
-    public void login(AuthRequestDto requestDto) {
+    public AuthResponseDto login(AuthRequestDto requestDto) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(requestDto.login(), requestDto.password())
             );
+            UserDetails principal = (UserDetails) authentication.getPrincipal();
+            String token = jwtService.generateAccessToken(Objects.requireNonNull(principal));
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
             log.info("User logged in: login='{}'", requestDto.login());
+            return new AuthResponseDto(token);
         } catch (AuthenticationException e) {
             log.warn("Failed login attempt: login='{}'", requestDto.login());
             throw new InvalidCredentialsException();
         }
-    }
-
-    public void logout() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String login = auth != null ? auth.getName() : "anonymous";
-        log.info("User logged out: login='{}'", login);
-
-        SecurityContextHolder.clearContext();
     }
 
 }
