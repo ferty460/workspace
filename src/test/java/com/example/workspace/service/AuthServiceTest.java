@@ -2,6 +2,7 @@ package com.example.workspace.service;
 
 import com.example.workspace.exception.InvalidCredentialsException;
 import com.example.workspace.exception.UserAlreadyExistsException;
+import com.example.workspace.model.Role;
 import com.example.workspace.model.User;
 import com.example.workspace.model.dto.AuthRequestDto;
 import com.example.workspace.model.dto.AuthResponseDto;
@@ -70,7 +71,7 @@ class AuthServiceTest {
         @DisplayName("throws UserAlreadyExistsException when the login is taken")
         void throwsWhenLoginTaken() {
             when(userRepository.findByLogin("alice"))
-                    .thenReturn(Optional.of(new User(1L, "alice", "hash")));
+                    .thenReturn(Optional.of(new User(1L, "alice", "hash", Role.USER)));
 
             assertThatThrownBy(() -> authService.register(request))
                     .isInstanceOf(UserAlreadyExistsException.class);
@@ -82,7 +83,7 @@ class AuthServiceTest {
         @DisplayName("does not touch the repository when the login is taken")
         void doesNotSaveWhenLoginTaken() {
             when(userRepository.findByLogin("alice"))
-                    .thenReturn(Optional.of(new User(1L, "alice", "hash")));
+                    .thenReturn(Optional.of(new User(1L, "alice", "hash", Role.USER)));
 
             assertThatThrownBy(() -> authService.register(request))
                     .isInstanceOf(UserAlreadyExistsException.class);

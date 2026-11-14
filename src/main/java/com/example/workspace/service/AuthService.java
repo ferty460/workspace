@@ -2,6 +2,7 @@ package com.example.workspace.service;
 
 import com.example.workspace.exception.InvalidCredentialsException;
 import com.example.workspace.exception.UserAlreadyExistsException;
+import com.example.workspace.model.Role;
 import com.example.workspace.model.User;
 import com.example.workspace.model.dto.AuthRequestDto;
 import com.example.workspace.model.dto.AuthResponseDto;
@@ -13,7 +14,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,6 +39,7 @@ public class AuthService {
 
         User registeredUser = new User();
         registeredUser.setLogin(login);
+        registeredUser.setRole(Role.USER);
         registeredUser.setPassword(passwordEncoder.encode(requestDto.password()));
 
         User addedUser = userRepository.add(registeredUser);
