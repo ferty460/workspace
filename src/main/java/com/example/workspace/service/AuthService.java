@@ -39,10 +39,10 @@ public class AuthService {
 
         User registeredUser = new User();
         registeredUser.setLogin(login);
-        registeredUser.setRole(Role.USER);
+        registeredUser.setRole(Role.ADMIN);
         registeredUser.setPassword(passwordEncoder.encode(requestDto.password()));
 
-        User addedUser = userRepository.add(registeredUser);
+        User addedUser = userRepository.save(registeredUser);
 
         log.info("User registered: login='{}', id={}", login, addedUser.getId());
         return new UserResponseDto(addedUser.getId(), login);
