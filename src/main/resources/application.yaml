@@ -24,5 +24,7 @@ logging:
     com.example.workspace: DEBUG
 
 jwt:
-  secret: ${JWT_SECRET:local-dev-only-secret-key-at-least-32-bytes}
+  secret: ${JWT_SECRET}
   access-token-ttl: PT15M
+  issuer: workspace
+  audience: workspace-api
