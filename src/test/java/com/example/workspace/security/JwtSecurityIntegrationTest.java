@@ -1,5 +1,7 @@
 package com.example.workspace.security;
 
+import com.example.workspace.config.JwtProperties;
+import com.example.workspace.model.Role;
 import com.example.workspace.model.User;
 import com.example.workspace.repository.UserRepository;
 import com.example.workspace.service.JwtService;
@@ -13,7 +15,14 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
 import java.util.List;
@@ -23,11 +32,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@Transactional
+@Testcontainers
 @DisplayName("JWT security integration")
 class JwtSecurityIntegrationTest {
 
+    @Container
+    static PostgreSQLContainer postgres = new PostgreSQLContainer(
+            DockerImageName.parse("postgres:16-alpine")
+    );
+
+    @DynamicPropertySource
+    static void registerProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+    }
+
     private static final String PROTECTED_ENDPOINT = "/api/users";
     private static final String PUBLIC_ENDPOINT = "/api/home";
+    private static final String ADMIN_ENDPOINT = "/api/admin/ping";
 
     @Autowired MockMvc mockMvc;
     @Autowired JwtService jwtService;
@@ -36,12 +60,20 @@ class JwtSecurityIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        if (userRepository.findByLogin("alice").isEmpty()) {
+        userRepository.findByLogin("alice").orElseGet(() -> {
             User u = new User();
             u.setLogin("alice");
             u.setPassword(passwordEncoder.encode("secret123"));
-            userRepository.add(u);
-        }
+            u.setRole(Role.USER);
+            return userRepository.save(u);
+        });
+        userRepository.findByLogin("admin").orElseGet(() -> {
+            User u = new User();
+            u.setLogin("admin");
+            u.setPassword(passwordEncoder.encode("secret123"));
+            u.setRole(Role.ADMIN);
+            return userRepository.save(u);
+        });
     }
 
     private UserDetails alice() {
@@ -50,6 +82,20 @@ class JwtSecurityIntegrationTest {
                 .password("x")
                 .authorities(List.of(new SimpleGrantedAuthority("ROLE_USER")))
                 .build();
+    }
+
+    private UserDetails admin() {
+        return org.springframework.security.core.userdetails.User
+                .withUsername("admin")
+                .password("x")
+                .authorities(List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
+                .build();
+    }
+
+    private JwtService jwtWith(Duration ttl) {
+        return new JwtService(new JwtProperties(
+                "test-secret-key-at-least-32-bytes-long!!",
+                ttl, "workspace", "workspace-api"));
     }
 
     @Nested
@@ -68,42 +114,39 @@ class JwtSecurityIntegrationTest {
         void returns200WithValidToken() throws Exception {
             String token = jwtService.generateAccessToken(alice());
 
-            mockMvc.perform(get(PROTECTED_ENDPOINT).header("Authorization", "Bearer " + token))
+            mockMvc.perform(get(PROTECTED_ENDPOINT)
+                            .header("Authorization", "Bearer " + token))
                     .andExpect(status().isOk());
         }
 
         @Test
         @DisplayName("returns 401 with a malformed token")
         void returns401WithMalformedToken() throws Exception {
-            mockMvc.perform(get(PROTECTED_ENDPOINT).header("Authorization", "Bearer garbage.token.here"))
+            mockMvc.perform(get(PROTECTED_ENDPOINT)
+                            .header("Authorization", "Bearer garbage.token.here"))
                     .andExpect(status().isUnauthorized());
         }
 
         @Test
         @DisplayName("returns 401 with a token signed by a different key")
         void returns401WithTokenSignedByDifferentKey() throws Exception {
-            JwtService foreignJwtService = new JwtService(
+            JwtService foreign = new JwtService(new JwtProperties(
                     "another-secret-key-at-least-32-bytes-long!!",
-                    Duration.ofMinutes(15)
-            );
-            String foreignToken = foreignJwtService.generateAccessToken(alice());
+                    Duration.ofMinutes(15), "workspace", "workspace-api"));
+            String token = foreign.generateAccessToken(alice());
 
             mockMvc.perform(get(PROTECTED_ENDPOINT)
-                            .header("Authorization", "Bearer " + foreignToken))
+                            .header("Authorization", "Bearer " + token))
                     .andExpect(status().isUnauthorized());
         }
 
         @Test
         @DisplayName("returns 401 with an expired token")
         void returns401WithExpiredToken() throws Exception {
-            JwtService expiredJwtService = new JwtService(
-                    "test-secret-key-at-least-32-bytes-long!!",
-                    Duration.ofSeconds(-60)
-            );
-            String expiredToken = expiredJwtService.generateAccessToken(alice());
+            String token = jwtWith(Duration.ofSeconds(-60)).generateAccessToken(alice());
 
             mockMvc.perform(get(PROTECTED_ENDPOINT)
-                            .header("Authorization", "Bearer " + expiredToken))
+                            .header("Authorization", "Bearer " + token))
                     .andExpect(status().isUnauthorized());
         }
 
@@ -114,6 +157,38 @@ class JwtSecurityIntegrationTest {
 
             mockMvc.perform(get(PROTECTED_ENDPOINT)
                             .header("Authorization", "Basic " + token))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("admin endpoint")
+    class AdminEndpoint {
+
+        @Test
+        @DisplayName("returns 403 for an authenticated user without ROLE_ADMIN")
+        void returns403ForPlainUser() throws Exception {
+            String token = jwtService.generateAccessToken(alice());
+
+            mockMvc.perform(get(ADMIN_ENDPOINT)
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("returns 200 for an ADMIN token")
+        void returns200ForAdmin() throws Exception {
+            String token = jwtService.generateAccessToken(admin());
+
+            mockMvc.perform(get(ADMIN_ENDPOINT)
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("returns 401 without a token")
+        void returns401WithoutToken() throws Exception {
+            mockMvc.perform(get(ADMIN_ENDPOINT))
                     .andExpect(status().isUnauthorized());
         }
     }

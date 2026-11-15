@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/test
+    username: test
+    password: test
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  sql:
+    init:
+      mode: never
+
+jwt:
+  secret: my-super-secret-key-for-tests-that-is-at-least-32-bytes-long!!
+  access-token-ttl: PT15M
+  issuer: workspace
+  audience: workspace-api
