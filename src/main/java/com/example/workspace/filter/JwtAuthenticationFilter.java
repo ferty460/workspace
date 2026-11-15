@@ -1,6 +1,8 @@
 package com.example.workspace.filter;
 
+import com.example.workspace.repository.RevokedAccessTokenRepository;
 import com.example.workspace.service.JwtService;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -28,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final RevokedAccessTokenRepository revokedAccessTokenRepository;
 
     @Override
     protected void doFilterInternal(
@@ -35,33 +38,45 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
+
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+
         if (header == null || !header.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String token = header.substring(7);
+
         try {
-            String username = jwtService.extractUsername(token);
+            Claims claims = jwtService.parse(token);
+            String username = claims.getSubject();
 
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (username != null &&
+                    SecurityContextHolder.getContext().getAuthentication() == null) {
+
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                if (jwtService.isValid(token, userDetails)) {
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities()
-                    );
 
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                if (jwtService.isValid(claims, userDetails)) {
+                    boolean revoked = revokedAccessTokenRepository
+                            .existsByJtiAndIssuer(claims.getId(), claims.getIssuer());
 
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    if (!revoked) {
+                        var authentication = new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
+
+                        authentication.setDetails(
+                                new WebAuthenticationDetailsSource().buildDetails(request)
+                        );
+
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
                 }
             }
-        } catch (JwtException e) {
-            log.debug("Invalid JWT: {}", e.getMessage());
-            SecurityContextHolder.clearContext();
-        } catch (UsernameNotFoundException e) {
-            log.debug("User from token not found: {}", e.getMessage());
+        } catch (JwtException | IllegalArgumentException | UsernameNotFoundException e) {
             SecurityContextHolder.clearContext();
         }
 

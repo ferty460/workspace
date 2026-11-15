@@ -1,4 +1,4 @@
 package com.example.workspace.model.dto;
 
-public record AuthResponseDto(String accessToken) {
+public record AuthResponseDto(String accessToken, String refreshToken) {
 }
