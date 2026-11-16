@@ -1,10 +1,10 @@
 package com.example.workspace.security;
 
-import com.example.workspace.config.JwtProperties;
-import com.example.workspace.model.Role;
-import com.example.workspace.model.User;
-import com.example.workspace.repository.UserRepository;
-import com.example.workspace.service.JwtService;
+import com.example.workspace.auth.config.JwtProperties;
+import com.example.workspace.auth.model.Role;
+import com.example.workspace.auth.model.User;
+import com.example.workspace.auth.repository.UserRepository;
+import com.example.workspace.auth.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

@@ -1,6 +1,7 @@
 package com.example.workspace.service;
 
-import com.example.workspace.config.JwtProperties;
+import com.example.workspace.auth.config.JwtProperties;
+import com.example.workspace.auth.service.JwtService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.IncorrectClaimException;

@@ -1,15 +1,18 @@
 package com.example.workspace.service;
 
-import com.example.workspace.exception.InvalidCredentialsException;
-import com.example.workspace.exception.UserAlreadyExistsException;
-import com.example.workspace.model.RevokedAccessToken;
-import com.example.workspace.model.Role;
-import com.example.workspace.model.User;
-import com.example.workspace.model.dto.AuthRequestDto;
-import com.example.workspace.model.dto.AuthResponseDto;
-import com.example.workspace.model.dto.UserResponseDto;
-import com.example.workspace.repository.RevokedAccessTokenRepository;
-import com.example.workspace.repository.UserRepository;
+import com.example.workspace.auth.exception.InvalidCredentialsException;
+import com.example.workspace.auth.exception.UserAlreadyExistsException;
+import com.example.workspace.auth.model.RevokedAccessToken;
+import com.example.workspace.auth.service.AuthService;
+import com.example.workspace.auth.service.JwtService;
+import com.example.workspace.auth.service.RefreshTokenService;
+import com.example.workspace.auth.model.Role;
+import com.example.workspace.auth.model.User;
+import com.example.workspace.auth.model.dto.AuthRequestDto;
+import com.example.workspace.auth.model.dto.AuthResponseDto;
+import com.example.workspace.auth.model.dto.UserResponseDto;
+import com.example.workspace.auth.repository.RevokedAccessTokenRepository;
+import com.example.workspace.auth.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -44,11 +47,14 @@ class AuthServiceTest {
     @Mock UserRepository userRepository;
     @Mock PasswordEncoder passwordEncoder;
     @Mock AuthenticationManager authenticationManager;
-    @Mock JwtService jwtService;
-    @Mock RefreshTokenService refreshTokenService;
+    @Mock
+    JwtService jwtService;
+    @Mock
+    RefreshTokenService refreshTokenService;
     @Mock RevokedAccessTokenRepository revokedAccessTokenRepository;
 
-    @InjectMocks AuthService authService;
+    @InjectMocks
+    AuthService authService;
 
     private final AuthRequestDto request = new AuthRequestDto("alice", "secret123");
 
