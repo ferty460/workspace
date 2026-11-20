@@ -11,6 +11,7 @@ import com.example.workspace.auth.model.dto.AuthResponseDto;
 import com.example.workspace.auth.model.dto.UserResponseDto;
 import com.example.workspace.auth.repository.RevokedAccessTokenRepository;
 import com.example.workspace.auth.repository.UserRepository;
+import com.example.workspace.core.exception.NotFoundException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
@@ -64,7 +65,7 @@ public class AuthService {
 
             UserDetails principal = (UserDetails) authentication.getPrincipal();
             User user = userRepository.findByLogin(Objects.requireNonNull(principal).getUsername())
-                    .orElseThrow();
+                    .orElseThrow(() -> new NotFoundException("User not found"));
 
             String accessToken = jwtService.generateAccessToken(principal);
             String refreshToken = refreshTokenService.createRefreshToken(user.getId(), null, userAgent, ip);
