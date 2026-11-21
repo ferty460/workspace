@@ -2,6 +2,7 @@ package com.example.workspace.finance.repository;
 
 import com.example.workspace.finance.model.Operation;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,5 +31,11 @@ public interface OperationRepository extends JpaRepository<Operation, Long> {
             @Param("accountId") Long accountId,
             @Param("ownerId") Long ownerId
     );
+
+    @Modifying
+    @Query("DELETE FROM Operation o WHERE o.account.id = :accountId")
+    void deleteByAccountId(@Param("accountId") Long accountId);
+
+    long countByAccountId(Long accountId);
 
 }
