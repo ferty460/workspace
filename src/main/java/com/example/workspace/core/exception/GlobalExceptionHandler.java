@@ -2,13 +2,17 @@ package com.example.workspace.core.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
@@ -47,6 +51,20 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail handleMissingParam(MissingServletRequestParameterException ex) {
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Missing required parameter: " + ex.getParameterName());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Invalid value for parameter: " + ex.getName());
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     public ProblemDetail handleNotFound(NoResourceFoundException ex) {
         return ProblemDetail.forStatusAndDetail(
@@ -63,6 +81,22 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT,
                 "Request conflicts with existing data"
         );
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ProblemDetail handleOptimisticLock(ObjectOptimisticLockingFailureException ex) {
+        log.warn("Optimistic lock conflict", ex);
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT,
+                "Resource was modified concurrently, please retry");
+    }
+
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ProblemDetail handleDeadlock(PessimisticLockingFailureException ex) {
+        log.warn("Deadlock detected", ex);
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT,
+                "Concurrent modification conflict, please retry");
     }
 
     @ExceptionHandler(Exception.class)
