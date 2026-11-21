@@ -8,12 +8,14 @@ import com.example.workspace.finance.model.dto.OperationResponseDto;
 import com.example.workspace.finance.repository.AccountRepository;
 import com.example.workspace.finance.repository.OperationRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OperationService {
@@ -23,10 +25,11 @@ public class OperationService {
 
     @Transactional(readOnly = true)
     public List<OperationResponseDto> getAllByAccountId(Long accountId, Long userId) {
-        loadOwnedAccount(accountId, userId);
+        if (!accountRepository.existsByIdAndOwnerId(accountId, userId)) {
+            throw new NotFoundException("Account not found");
+        }
 
-        return operationRepository.findAllByAccountAndOwner(accountId, userId)
-                .stream()
+        return operationRepository.findAllByAccountAndOwner(accountId, userId).stream()
                 .map(this::toDto)
                 .toList();
     }
@@ -48,10 +51,12 @@ public class OperationService {
         op.setAmount(dto.amount());
         op.setDescription(dto.description());
 
-        operationRepository.save(op);
-        applyDelta(account, op.signedAmount());
+        Operation saved = operationRepository.save(op);
+        applyDelta(account, saved.signedAmount());
 
-        return toDto(op);
+        log.info("Operation created: id={}, accountId={}, type={}, amount={}",
+                saved.getId(), accountId, saved.getType(), saved.getAmount());
+        return toDto(saved);
     }
 
     @Transactional
@@ -60,27 +65,40 @@ public class OperationService {
                 .orElseThrow(() -> new NotFoundException("Operation not found"));
 
         BigDecimal oldSigned = op.signedAmount();
+        Long oldAccountId = op.getAccount().getId();
+        boolean moving = dto.accountId() != null && !dto.accountId().equals(oldAccountId);
 
-        Account oldAccount = op.getAccount();
-        Account targetAccount = oldAccount;
-        if (dto.accountId() != null && !dto.accountId().equals(oldAccount.getId())) {
-            targetAccount = loadOwnedAccountForUpdate(dto.accountId(), userId);
+        if (moving) {
+            Long first = Math.min(oldAccountId, dto.accountId());
+            Long second = Math.max(oldAccountId, dto.accountId());
+            Account firstAcc = loadOwnedAccountForUpdate(first, userId);
+            Account secondAcc = loadOwnedAccountForUpdate(second, userId);
+
+            Account oldAccount = first.equals(oldAccountId) ? firstAcc : secondAcc;
+            Account targetAccount = first.equals(dto.accountId()) ? firstAcc : secondAcc;
+
             op.setAccount(targetAccount);
+            op.setType(dto.type());
+            op.setAmount(dto.amount());
+            op.setDescription(dto.description());
+
+            BigDecimal newSigned = op.signedAmount();
+            applyDelta(oldAccount, oldSigned.negate());
+            applyDelta(targetAccount, newSigned);
+
+            log.info("Operation moved: id={}, {} -> {}", operationId, oldAccountId, targetAccount.getId());
+            return toDto(op);
         }
 
+        Account account = loadOwnedAccountForUpdate(oldAccountId, userId);
         op.setType(dto.type());
         op.setAmount(dto.amount());
         op.setDescription(dto.description());
 
         BigDecimal newSigned = op.signedAmount();
+        applyDelta(account, newSigned.subtract(oldSigned));
 
-        if (oldAccount.getId().equals(targetAccount.getId())) {
-            applyDelta(targetAccount, newSigned.subtract(oldSigned));
-        } else {
-            applyDelta(oldAccount, oldSigned.negate());
-            applyDelta(targetAccount, newSigned);
-        }
-
+        log.info("Operation updated: id={}, accountId={}", operationId, account.getId());
         return toDto(op);
     }
 
@@ -89,15 +107,18 @@ public class OperationService {
         Operation op = operationRepository.findByIdAndAccountOwnerId(operationId, userId)
                 .orElseThrow(() -> new NotFoundException("Operation not found"));
 
-        applyDelta(op.getAccount(), op.signedAmount().negate());
+        Account account = loadOwnedAccountForUpdate(op.getAccount().getId(), userId);
+        applyDelta(account, op.signedAmount().negate());
         operationRepository.delete(op);
+
+        log.info("Operation deleted: id={}, accountId={}", operationId, account.getId());
     }
 
     private OperationResponseDto toDto(Operation op) {
         return new OperationResponseDto(
                 op.getId(),
                 op.getAccount().getId(),
-                op.getType().name(),
+                op.getType(),
                 op.getAmount(),
                 op.getDescription()
         );
@@ -110,11 +131,6 @@ public class OperationService {
 
     private Account loadOwnedAccountForUpdate(Long accountId, Long userId) {
         return accountRepository.findByIdAndOwnerIdForUpdate(accountId, userId)
-                .orElseThrow(() -> new NotFoundException("Account not found"));
-    }
-
-    private Account loadOwnedAccount(Long accountId, Long userId) {
-        return accountRepository.findByIdAndOwnerId(accountId, userId)
                 .orElseThrow(() -> new NotFoundException("Account not found"));
     }
 
