@@ -26,7 +26,7 @@ public class AccountService {
     private final OperationRepository operationRepository;
 
     @Transactional
-    public AccountDetailsDto create(AccountRequestDto dto, User owner) {
+    public AccountResponseDto create(AccountRequestDto dto, User owner) {
         String name = dto.name().trim();
         Long userId = owner.getId();
 
@@ -42,7 +42,7 @@ public class AccountService {
         Account saved = accountRepository.save(account);
         log.info("Account created: id={}, ownerId={}", saved.getId(), userId);
 
-        return toDetailsDto(saved);
+        return toDto(saved);
     }
 
     @Transactional(readOnly = true)
@@ -53,10 +53,15 @@ public class AccountService {
 
     @Transactional(readOnly = true)
     public List<AccountResponseDto> getByOwnerId(Long userId) {
-        return accountRepository.findAllByOwnerIdOrderByNameAsc(userId)
+        return accountRepository.findAllByOwnerId(userId)
                 .stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalBalance(Long userId) {
+        return accountRepository.sumMoneyByOwnerId(userId);
     }
 
     @Transactional

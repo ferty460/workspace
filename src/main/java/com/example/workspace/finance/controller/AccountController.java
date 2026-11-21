@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -33,8 +34,13 @@ public class AccountController {
                 .body(accountService.get(accountId, principal.user().getId()));
     }
 
+    @GetMapping("/total-balance")
+    public ResponseEntity<BigDecimal> getTotalBalance(@AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(accountService.getTotalBalance(principal.user().getId()));
+    }
+
     @PostMapping
-    public ResponseEntity<AccountDetailsDto> create(
+    public ResponseEntity<AccountResponseDto> create(
             @Valid @RequestBody AccountRequestDto dto,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
