@@ -14,12 +14,12 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     List<Account> findAllByOwnerIdOrderByNameAsc(Long ownerId);
 
-    Optional<Account> findByIdAndOwnerId(Long id, Long ownerId);
-
-    boolean existsByOwnerIdAndNameIgnoreCase(Long ownerId, String name);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Account a WHERE a.id = :id AND a.owner.id = :ownerId")
     Optional<Account> findByIdAndOwnerIdForUpdate(@Param("id") Long id, @Param("ownerId") Long ownerId);
+
+    boolean existsByOwnerIdAndNameIgnoreCase(Long ownerId, String name);
+
+    boolean existsByIdAndOwnerId(Long id, Long ownerId);
 
 }

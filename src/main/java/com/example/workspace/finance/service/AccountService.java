@@ -36,7 +36,7 @@ public class AccountService {
 
         Account account = new Account();
         account.setName(name);
-        account.setMoney(BigDecimal.ZERO);
+        account.setMoney(dto.balance());
         account.setOwner(owner);
 
         Account saved = accountRepository.save(account);
@@ -47,7 +47,7 @@ public class AccountService {
 
     @Transactional(readOnly = true)
     public AccountDetailsDto get(Long accountId, Long userId) {
-        Account account = loadOwned(accountId, userId);
+        Account account = loadOwnedForUpdate(accountId, userId);
         return toDetailsDto(account);
     }
 
@@ -61,7 +61,7 @@ public class AccountService {
 
     @Transactional
     public AccountResponseDto edit(Long accountId, AccountRequestDto dto, Long userId) {
-        Account account = loadOwned(accountId, userId);
+        Account account = loadOwnedForUpdate(accountId, userId);
         String newName = dto.name().trim();
 
         if (account.getName().equalsIgnoreCase(newName)) {
@@ -80,16 +80,17 @@ public class AccountService {
 
     @Transactional
     public void delete(Long accountId, Long userId) {
-        Account account = loadOwned(accountId, userId);
+        Account account = loadOwnedForUpdate(accountId, userId);
 
-        operationRepository.deleteAll(account.getOperations());
+        operationRepository.deleteByAccountId(accountId);
         accountRepository.delete(account);
+
         log.info("Account deleted: id={}, ownerId={}", accountId, userId);
     }
 
-    private Account loadOwned(Long accountId, Long userId) {
-        return accountRepository.findByIdAndOwnerId(accountId, userId)
-                .orElseThrow(() -> new NotFoundException("Account with id " + accountId + " not found"));
+    private Account loadOwnedForUpdate(Long accountId, Long userId) {
+        return accountRepository.findByIdAndOwnerIdForUpdate(accountId, userId)
+                .orElseThrow(() -> new NotFoundException("Account not found"));
     }
 
     private AccountResponseDto toDto(Account a) {
@@ -97,12 +98,8 @@ public class AccountService {
     }
 
     private AccountDetailsDto toDetailsDto(Account saved) {
-        return new AccountDetailsDto(
-                saved.getId(),
-                saved.getName(),
-                saved.getMoney(),
-                saved.getOperations().size()
-        );
+        long count = operationRepository.countByAccountId(saved.getId());
+        return new AccountDetailsDto(saved.getId(), saved.getName(), saved.getMoney(), count);
     }
 
 }

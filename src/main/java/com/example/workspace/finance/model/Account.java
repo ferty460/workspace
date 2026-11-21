@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Entity
 @Table(name = "accounts")
@@ -31,9 +30,6 @@ public class Account {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
-
-    @OneToMany(mappedBy = "account")
-    private List<Operation> operations;
 
     @Version
     private Long version;
